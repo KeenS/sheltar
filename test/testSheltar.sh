@@ -34,7 +34,7 @@ testBaseBackup(){
     assertEquals "Backup file should be created" \
                  1 "$(ls "${BACKUP_DIR}" | wc -l | tr -d '[ \t\n]' )"
     assertEquals "Backup file should contain all the listed file" \
-    "$({ echo "${BACKUP_FILES}"; echo c/; } | tr \  \\n | sort)" "$(tar tJf ${BACKUP_DIR}/$(ls ${BACKUP_DIR}) | sort)"
+    "$({ echo "${BACKUP_FILES}"; echo c/; } | tr \  \\n | sort)" "$(tar tJf ${BACKUP_DIR}/$(ls ${BACKUP_DIR}) | sed -e 's|//*|/|g' | sort)"
 }
 
 
@@ -62,7 +62,7 @@ testIncrementalBackupDir(){
 Concerning directory, files under directory which ends with '/' in list file should separately managed.
 directory which ends without '/' in list file should be managed as one dir
 " \
-    "b/1.txt" "$(tar tJf ${BACKUP_DIR}/$(ls -t ${BACKUP_DIR} | head -n 1 | sort ))"
+    "b/1.txt" "$(tar tJf ${BACKUP_DIR}/$(ls -t ${BACKUP_DIR} | head -n 1 | sed -e 's|//*|/|g'  | sort ))"
 }
 
 
