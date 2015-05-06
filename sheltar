@@ -105,7 +105,7 @@ st_backup()
     fi |
         tar cJf "$(st_backup_name)" \
             -T -                    \
-            --preserve-permissions
+            -p
 }
 
 
@@ -120,8 +120,7 @@ st_extract_all()
     do
         tar xf "${ST_BACKUP_DIR}/${TARBALL}" \
             --keep-newer-files               \
-            --preserve-permissions           \
-            --preserve-order
+            -p
     done
 }
 
