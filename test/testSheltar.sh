@@ -32,7 +32,7 @@ BACKUP_FILES="a.txt b/1.txt b/2.txt c/1.txt c/2.txt d/e/f.txt"
 testBaseBackup(){
     ${SHELTAR} backup "${BACKUP_DIR}" "${BACKUP_LIST_FILE}"
     assertEquals "Backup file should be created" \
-                 1 "$(ls "${BACKUP_DIR}" | wc -l )"
+                 1 "$(ls "${BACKUP_DIR}" | wc -l | tr -d '[ \t\n]' )"
     assertEquals "Backup file should contain all the listed file" \
     "$({ echo "${BACKUP_FILES}"; echo c/; } | tr \  \\n | sort)" "$(tar tJf ${BACKUP_DIR}/$(ls ${BACKUP_DIR}) | sort)"
 }
@@ -44,7 +44,7 @@ testIncrementalBackup(){
     echo aaa >> a.txt
     ${SHELTAR} backup "${BACKUP_DIR}" "${BACKUP_LIST_FILE}"
     assertEquals "New backup file should be created" \
-                 2 "$(ls "${BACKUP_DIR}" | wc -l )"
+                 2 "$(ls "${BACKUP_DIR}" | wc -l | tr -d '[ \t\n]' )"
     assertEquals "Incremental backup file should contain only newly modified files" \
     a.txt "$(tar tJf ${BACKUP_DIR}/$(ls -t ${BACKUP_DIR} | head -n 1))"
 }
@@ -56,7 +56,7 @@ testIncrementalBackupDir(){
     echo ccc >> c/1.txt
     ${SHELTAR} backup "${BACKUP_DIR}" "${BACKUP_LIST_FILE}"
     assertEquals "New backup file should be created" \
-                 3 "$(ls "${BACKUP_DIR}" | wc -l )"
+                 3 "$(ls "${BACKUP_DIR}" | wc -l | tr -d '[ \t\n]' )"
 
     assertEquals "Incremental backup file should contain only newly modified files.
 Concerning directory, files under directory which ends with '/' in list file should separately managed.
