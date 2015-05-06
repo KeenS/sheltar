@@ -1,0 +1,200 @@
+#!/bin/sh
+# Copyright (c) 2015, Sunrin SHIMURA
+# All rights reserved.
+
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+# * Redistributions of source code must retain the above copyright notice, 
+#   this list of conditions and the following disclaimer.
+# * Redistributions in binary form must reproduce the above copyright notice, 
+#   this list of conditions and the following disclaimer in the documentation 
+#   and/or other materials provided with the distribution.
+# * Neither the name of the <organization> nor the　names of its contributors 
+#   may be used to endorse or promote products derived from this software 
+#   without specific prior written permission.
+
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL Sunrin SHIMURA BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+# Idiom to get the directory where this script exists
+ROOT="$(cd "$(dirname $(readlink -f "$0"))"; pwd)"
+
+ST_PLUGIN_DIR="${ROOT}/plugin"
+
+# set variables if not set
+: ${ST_BACKUP_FILENAME_FORMAT:=+backup-%Y-%m-%d-%H-%M-%S.tar.xz} # format recognizable to `date`
+
+# Generate backup file name
+## @stdout backup file name 
+st_backup_name()
+{
+    name="${ST_BACKUP_DIR}/$(date "${ST_BACKUP_FILENAME_FORMAT}")"
+    i=1
+    while [ -f "${name}" ]
+    do
+        name="${ST_BACKUP_DIR}/$(date "${ST_BACKUP_FILENAME_FORMAT}")-${i}"
+        i=$(( $i + 1))
+    done
+    echo "${name}"
+}
+
+# Read file list separated by newline from stdin and output files
+# which is newer than $1
+## @param $1 -- file to compare the last modified time to
+## @stdin  newline separated files to fileter
+## @stdout newline separated filetered files
+st_filter_newer()
+{
+    while read FILE
+    do
+        if [ "${FILE}" -nt "$1" ]
+        then
+            echo "${FILE}"
+        fi
+    done
+}
+
+# Read file list separeted by newline and if the file name ends with '/',
+# output all the underlying files, else output itself.
+## @stdin newline separated files and dirs
+## @stdout newline separated expanded files
+st_expand_dir()
+{
+    while read FILE
+    do
+        # check if ${FILE} ends with '/'
+        if expr "${FILE}" : '.*/$' > /dev/null 2>&1
+        then
+            find "${FILE}" -type f
+        else
+            echo "${FILE}"
+        fi
+    done
+    
+}
+
+# archive into $1 files listed in $2 if newer than previous backup.
+# Backup taball will named using ST_BACKUP_FILENAME_FORMAT
+## @param $1 -- back up dir to save backup archives
+## @param $2 -- list of files to backup
+## @filesystem create backup file to $ST_BACKUP_DIR named $ST_BACKUP_FILENAME_FORMAT
+st_backup()
+{
+    [ $# -le 1 ] && st_help && exit 1
+
+    ST_BACKUP_DIR="$1"
+    shift
+
+    previous_backup="$(ls --sort=time "${ST_BACKUP_DIR}" | grep -E '\.tar\....?' | head -n 1)"
+
+    cat "$1" | st_expand_dir | if [ -n "${previous_backup}" ]
+    then                        # if there are previous backups
+        st_filter_newer "${ST_BACKUP_DIR}/${previous_backup}"
+    else                        # if there aren't
+        cat
+    fi |
+        tar cJf "$(st_backup_name)" \
+            -T -                    \
+            --preserve-permissions
+}
+
+
+# Extract the all files from backups in $ST_BACKUP_DIR.
+# A file with the same name as extracting file will be preserved if it is newer than its counterpart.
+## @filesystem extract all the backup files to CWD
+st_extract_all()
+{
+    # This is preferable to `for TARBALL in $(ls)` because the names of listed files
+    # can contain whilespaces
+    ls --sort=time -r "${ST_BACKUP_DIR}" | while read TARBALL
+    do
+        tar xf "${ST_BACKUP_DIR}/${TARBALL}" \
+            --keep-newer-files               \
+            --preserve-permissions           \
+            --preserve-order
+    done
+}
+
+# Extract the newest version of specified files from backups in $ST_BACKUP_DIR.
+# A file with the same name as extracting file will be preserved if it is newer than its counterpart.
+## @param $@ -- files to extract
+## @filesystem extract specified backup files to CWD
+st_extract_files()
+{
+    for FILE
+    do
+        # Since B shell doesn't have arrays, caching the result of `ls`
+        # is a trying task. If performance matters, you can try to cache.
+        ls --sort=time "${ST_BACKUP_DIR}" | while read TARBALL
+        do
+            # break if extract succeded
+            if tar xJf "${ST_BACKUP_DIR}/${TARBALL}"  "${FILE}" > /dev/null 2>&1
+            then
+                break
+            fi
+        done
+    done
+}
+
+# Extract files from backups. If no arguments are given, will extract all files.
+# If given, extract the files.
+## @param $@ -- files to extract
+st_extract()
+{
+    [ $# = 0 ] && st_help && exit 1
+
+    ST_BACKUP_DIR="$1"
+    shift
+
+    if [ $# = 0 ]
+    then
+        st_extract_all
+    else
+        st_extract_files "$@"
+    fi
+}
+
+
+# Display help message.
+## @stdout -- help message
+st_help(){
+    cat <<EOF
+NAME:
+    sheltar
+SYNOPSIS:
+     $0 <command> [arguments]
+DESCRIPTION:
+backup <backup_dir> <list> -- backup files in <list> int <backup_dir>
+extract <backup_dir> [file...] -- extract [file...] from <backup_dir>. If empty, extrcat all.
+EOF
+}
+
+main()
+{
+    [ $# = 0 ] && st_help && exit 1
+
+    while [ $# -gt 0 ]
+    do
+        ARG="$1"
+        shift
+
+        case "$ARG" in
+            --help) st_help; exit 0;;
+            backup) st_backup "$@"; exit 0;;
+            extract) st_extract "$@"; exit 0;;
+            *) st_help; exit 1;;
+        esac
+    done
+}
+
+main "$@"
