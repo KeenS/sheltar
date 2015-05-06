@@ -95,7 +95,7 @@ st_backup()
     ST_BACKUP_DIR="$1"
     shift
 
-    previous_backup="$(ls --sort=time "${ST_BACKUP_DIR}" | grep -E '\.tar\....?' | head -n 1)"
+    previous_backup="$(ls -t "${ST_BACKUP_DIR}" | grep -E '\.tar\....?' | head -n 1)"
 
     cat "$1" | st_expand_dir | if [ -n "${previous_backup}" ]
     then                        # if there are previous backups
@@ -116,7 +116,7 @@ st_extract_all()
 {
     # This is preferable to `for TARBALL in $(ls)` because the names of listed files
     # can contain whilespaces
-    ls --sort=time -r "${ST_BACKUP_DIR}" | while read TARBALL
+    ls -t -r "${ST_BACKUP_DIR}" | while read TARBALL
     do
         tar xf "${ST_BACKUP_DIR}/${TARBALL}" \
             --keep-newer-files               \
@@ -135,7 +135,7 @@ st_extract_files()
     do
         # Since B shell doesn't have arrays, caching the result of `ls`
         # is a trying task. If performance matters, you can try to cache.
-        ls --sort=time "${ST_BACKUP_DIR}" | while read TARBALL
+        ls -t "${ST_BACKUP_DIR}" | while read TARBALL
         do
             # break if extract succeded
             if tar xJf "${ST_BACKUP_DIR}/${TARBALL}"  "${FILE}" > /dev/null 2>&1

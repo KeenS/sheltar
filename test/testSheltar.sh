@@ -46,7 +46,7 @@ testIncrementalBackup(){
     assertEquals "New backup file should be created" \
                  2 "$(ls "${BACKUP_DIR}" | wc -l )"
     assertEquals "Incremental backup file should contain only newly modified files" \
-    a.txt "$(tar tJf ${BACKUP_DIR}/$(ls --sort=time ${BACKUP_DIR} | head -n 1))"
+    a.txt "$(tar tJf ${BACKUP_DIR}/$(ls -t ${BACKUP_DIR} | head -n 1))"
 }
 
 testIncrementalBackupDir(){
@@ -62,7 +62,7 @@ testIncrementalBackupDir(){
 Concerning directory, files under directory which ends with '/' in list file should separately managed.
 directory which ends without '/' in list file should be managed as one dir
 " \
-    "b/1.txt" "$(tar tJf ${BACKUP_DIR}/$(ls --sort=time ${BACKUP_DIR} | head -n 1 | sort ))"
+    "b/1.txt" "$(tar tJf ${BACKUP_DIR}/$(ls -t ${BACKUP_DIR} | head -n 1 | sort ))"
 }
 
 
