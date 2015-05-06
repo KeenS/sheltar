@@ -27,7 +27,7 @@
 
 
 # Idiom to get the directory where this script exists
-ROOT="$(cd "$(dirname $(readlink -f "$0"))"; pwd)"
+ROOT="$(cd "$(dirname "$0")"; pwd)"
 
 ST_PLUGIN_DIR="${ROOT}/plugin"
 
@@ -75,7 +75,7 @@ st_expand_dir()
         # check if ${FILE} ends with '/'
         if expr "${FILE}" : '.*/$' > /dev/null 2>&1
         then
-            find "${FILE}" -type f
+            find "${FILE%/}" -type f
         else
             echo "${FILE}"
         fi
